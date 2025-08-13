@@ -27,12 +27,16 @@ murmurhash==1.0.13
 nltk==3.9.1
 numpy==2.3.2
 packaging==25.0
+pdf2image==1.17.0
 pdfminer.six==20250506
+pillow==11.3.0
 preshed==3.0.10
 pycparser==2.22
 pydantic==2.11.7
 pydantic_core==2.33.2
 Pygments==2.19.2
+PyMuPDF==1.26.3
+pytesseract==0.3.13
 python-docx==1.2.0
 python-dotenv==1.1.1
 python-multipart==0.0.20
