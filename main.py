@@ -62,9 +62,10 @@ app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 ALLOWED_EXTS = [".pdf", ".docx"]
 
 # -----------------------
-# Temp result store
+# Temporary storage
 # -----------------------
 RESULTS_CACHE = {}
+ALL_CVS = []
 
 # -----------------------
 # Utility functions
@@ -201,7 +202,7 @@ def compute_score(resume_text: str, job_description: str):
         "warnings": warnings,
         "suggestion": suggestion,
         "cv_text": resume_text[:5000],
-        "cv_file_url": None  # will be updated
+        "cv_file_url": None
     }
 
 # -----------------------
@@ -218,22 +219,47 @@ async def index(request: Request, id: Optional[str] = None):
 async def check_cv(
     request: Request,
     background_tasks: BackgroundTasks,
-    resume: UploadFile = File(...),
+    resumes: list[UploadFile] = File(...),
     job_description: str = Form(...)
 ):
-    try:
-        # Save uploaded file
-        file_path = save_upload_file(resume)
-        result = compute_score(extract_text_from_upload(resume)[0], job_description)
-        result['cv_file_url'] = f"/{file_path}"
+    if len(resumes) == 1:
+        # Single CV logic
+        resume = resumes[0]
+        try:
+            file_path = save_upload_file(resume)
+            text, _ = extract_text_from_upload(resume)
+            result = compute_score(text, job_description)
+            result['cv_file_url'] = f"/{file_path}"
 
-        # Store result
-        rid = uuid.uuid4().hex
-        RESULTS_CACHE[rid] = result
+            rid = uuid.uuid4().hex
+            RESULTS_CACHE[rid] = result
+            background_tasks.add_task(cleanup_old_files)
+            return RedirectResponse(url=f"/?id={rid}", status_code=303)
+        except Exception as e:
+            return templates.TemplateResponse("index.html", {"request": request, "error": str(e)})
 
-        # Schedule cleanup
-        background_tasks.add_task(cleanup_old_files)
+    elif 2 <= len(resumes) <= 10:
+        batch_results = []
+        for resume in resumes:
+            try:
+                file_path = save_upload_file(resume)
+                text, _ = extract_text_from_upload(resume)
+                result = compute_score(text, job_description)
+                result['cv_file_url'] = f"/{file_path}"
+                result['filename'] = resume.filename
+                result['uploaded_at'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                batch_results.append(result)
+            except Exception as e:
+                batch_results.append({"filename": resume.filename, "error": str(e)})
 
-        return RedirectResponse(url=f"/?id={rid}", status_code=303)
-    except Exception as e:
-        return templates.TemplateResponse("index.html", {"request": request, "error": str(e)})
+        ALL_CVS.clear()
+        ALL_CVS.extend(batch_results)
+        return RedirectResponse(url="/dashboard", status_code=303)
+
+    else:
+        return templates.TemplateResponse("index.html", {"request": request, "error": "Upload 1–10 CVs only."})
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard(request: Request):
+    sorted_cvs = sorted(ALL_CVS, key=lambda x: x.get('score', 0), reverse=True)
+    return templates.TemplateResponse("dashboard.html", {"request": request, "cvs": sorted_cvs})

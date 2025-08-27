@@ -33,16 +33,19 @@
   <div class="card">
     <div class="card-body">
       <form action="/check" method="post" enctype="multipart/form-data">
-        <div class="mb-3">
-          <label class="form-label">Upload Resume (.pdf or .docx)</label>
-          <input type="file" name="resume" class="form-control" required>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Job Description</label>
-          <textarea name="job_description" class="form-control" rows="6" required></textarea>
-        </div>
-        <button type="submit" class="btn btn-primary">Check</button>
-      </form>
+  <div class="mb-3">
+    <label class="form-label">Upload Resumes (.pdf or .docx)</label>
+    
+<input type="file" name="resumes" class="form-control" multiple required>
+    <small class="text-muted">You can upload up to 10 files at once.</small>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Job Description</label>
+    <textarea name="job_description" class="form-control" rows="6" required></textarea>
+  </div>
+  <button type="submit" class="btn btn-primary">Check All</button>
+</form>
+
     </div>
   </div>
 
