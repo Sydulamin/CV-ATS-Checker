@@ -2,8 +2,9 @@ import os
 import io
 import re
 import uuid
+from datetime import datetime, timedelta
 from typing import Tuple, Optional
-from fastapi import FastAPI, Form, File, UploadFile, Request
+from fastapi import FastAPI, Form, File, UploadFile, Request, BackgroundTasks
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
@@ -49,7 +50,7 @@ app.add_middleware(
 templates = Jinja2Templates(directory="templates")
 
 # -----------------------
-# ensure uploads dir exists and serve static uploads
+# Upload folder & static mount
 # -----------------------
 uploads_dir = os.path.join(os.path.dirname(__file__), "uploads")
 os.makedirs(uploads_dir, exist_ok=True)
@@ -66,30 +67,33 @@ ALLOWED_EXTS = [".pdf", ".docx"]
 RESULTS_CACHE = {}
 
 # -----------------------
-# Utilities
+# Utility functions
 # -----------------------
 def get_extension(filename: str) -> str:
     return "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
 
 def save_upload_file(upload_file: UploadFile) -> str:
-    """
-    Save uploaded file to ./uploads and return the relative url path (uploads/filename).
-    """
     filename = os.path.basename(getattr(upload_file, "filename", "file"))
     safe_name = re.sub(r"[^A-Za-z0-9._-]", "_", filename)
     dest_name = f"{uuid.uuid4().hex}_{safe_name}"
     dest_path = os.path.join(uploads_dir, dest_name)
 
-    # ensure we read from start
     upload_file.file.seek(0)
     with open(dest_path, "wb") as out_f:
         out_f.write(upload_file.file.read())
 
-    # return a path that will be served at /uploads/<name>
     return f"uploads/{dest_name}"
 
+def cleanup_old_files():
+    now = datetime.now()
+    for fname in os.listdir(uploads_dir):
+        fpath = os.path.join(uploads_dir, fname)
+        if os.path.isfile(fpath):
+            modified_time = datetime.fromtimestamp(os.path.getmtime(fpath))
+            if now - modified_time > timedelta(hours=24):
+                os.remove(fpath)
+
 def extract_text_from_upload(upload_file) -> Tuple[str, str]:
-    """Extract text from DOCX/PDF, fallback to OCR."""
     name = getattr(upload_file, "filename", "")
     ext = get_extension(name)
     if ext not in ALLOWED_EXTS:
@@ -113,7 +117,6 @@ def extract_text_from_upload(upload_file) -> Tuple[str, str]:
                 return text, ext
         except Exception:
             pass
-        # OCR fallback
         try:
             images = convert_from_bytes(data)
             text = "\n".join([pytesseract.image_to_string(img) for img in images])
@@ -151,17 +154,12 @@ def check_cv_format(text: str):
 def semantic_match(resume_keywords, jd_keywords):
     matched = set()
     missing = set(jd_keywords)
-
     if not resume_keywords:
         return matched, missing
-
     resume_doc = nlp(" ".join(resume_keywords))
-    # filter out empty tokens
     resume_tokens = [t for t in resume_doc if (hasattr(t, "orth_") and t.orth_.strip())]
-
     if not resume_tokens:
         return matched, missing
-
     for word in jd_keywords:
         word_doc = nlp(word)
         sims = []
@@ -186,7 +184,6 @@ def compute_score(resume_text: str, job_description: str):
     format_score = max(0, 100 - len(warnings) * 10)
     final_score = int((keyword_score + format_score) / 2)
 
-    # Suggestion
     suggestion = []
     if warnings:
         suggestion.append("Fix formatting issues")
@@ -203,7 +200,8 @@ def compute_score(resume_text: str, job_description: str):
         "missing": list(missing),
         "warnings": warnings,
         "suggestion": suggestion,
-        "cv_text": resume_text[:5000]  # limit to first 5000 chars
+        "cv_text": resume_text[:5000],
+        "cv_file_url": None  # will be updated
     }
 
 # -----------------------
@@ -217,21 +215,25 @@ async def index(request: Request, id: Optional[str] = None):
     return templates.TemplateResponse("index.html", {"request": request, "result": result})
 
 @app.post("/check", response_class=HTMLResponse)
-async def check_cv(request: Request, resume: UploadFile = File(...), job_description: str = Form(...)):
+async def check_cv(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    resume: UploadFile = File(...),
+    job_description: str = Form(...)
+):
     try:
-        # Save the file
+        # Save uploaded file
         file_path = save_upload_file(resume)
-
-        # Extract text for analysis
-        resume_text, ext = extract_text_from_upload(resume)
-
-        result = compute_score(resume_text, job_description)
-
-        # Add CV file path for preview — points to mounted /uploads
+        result = compute_score(extract_text_from_upload(resume)[0], job_description)
         result['cv_file_url'] = f"/{file_path}"
 
+        # Store result
         rid = uuid.uuid4().hex
         RESULTS_CACHE[rid] = result
+
+        # Schedule cleanup
+        background_tasks.add_task(cleanup_old_files)
+
         return RedirectResponse(url=f"/?id={rid}", status_code=303)
     except Exception as e:
         return templates.TemplateResponse("index.html", {"request": request, "error": str(e)})
