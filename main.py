@@ -3,7 +3,7 @@ import io
 import re
 import uuid
 from datetime import datetime, timedelta
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 from fastapi import FastAPI, Form, File, UploadFile, Request, BackgroundTasks
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -45,7 +45,7 @@ except Exception:
 # -----------------------
 app = FastAPI(title="Professional ATS CV Checker", version="1.0.0")
 app.add_middleware(
-    CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"]
+    CORSMiddleware, allow_origins=["*"], allow_credentials=False, allow_methods=["*"], allow_headers=["*"]
 )
 templates = Jinja2Templates(directory="templates")
 
@@ -219,45 +219,38 @@ async def index(request: Request, id: Optional[str] = None):
 async def check_cv(
     request: Request,
     background_tasks: BackgroundTasks,
-    resumes: list[UploadFile] = File(...),
+    resumes: List[UploadFile] = File(...),
     job_description: str = Form(...)
 ):
-    if len(resumes) == 1:
-        # Single CV logic
-        resume = resumes[0]
-        try:
-            file_path = save_upload_file(resume)
-            text, _ = extract_text_from_upload(resume)
-            result = compute_score(text, job_description)
-            result['cv_file_url'] = f"/{file_path}"
+    try:
+        if not resumes:
+            raise ValueError("No CV uploaded")
 
+        results = []
+
+        # Process all resumes
+        for up in resumes:
+            file_path = save_upload_file(up)
+            resume_text, ext = extract_text_from_upload(up)
+            r = compute_score(resume_text, job_description)
+            r['cv_file_url'] = f"/{file_path}"
+            results.append(r)
+
+        # Single CV → show in home
+        if len(resumes) == 1:
+            result = results[0]
             rid = uuid.uuid4().hex
             RESULTS_CACHE[rid] = result
-            background_tasks.add_task(cleanup_old_files)
             return RedirectResponse(url=f"/?id={rid}", status_code=303)
-        except Exception as e:
-            return templates.TemplateResponse("index.html", {"request": request, "error": str(e)})
 
-    elif 2 <= len(resumes) <= 100:
-        batch_results = []
-        for resume in resumes:
-            try:
-                file_path = save_upload_file(resume)
-                text, _ = extract_text_from_upload(resume)
-                result = compute_score(text, job_description)
-                result['cv_file_url'] = f"/{file_path}"
-                result['filename'] = resume.filename
-                result['uploaded_at'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                batch_results.append(result)
-            except Exception as e:
-                batch_results.append({"filename": resume.filename, "error": str(e)})
+        # Multiple CVs → store all and go to dashboard
+        else:
+            for r in results:
+                ALL_CVS.append(r)
+            return RedirectResponse(url="/dashboard", status_code=303)
 
-        ALL_CVS.clear()
-        ALL_CVS.extend(batch_results)
-        return RedirectResponse(url="/dashboard", status_code=303)
-
-    else:
-        return templates.TemplateResponse("index.html", {"request": request, "error": "Upload 1–10 CVs only."})
+    except Exception as e:
+        return templates.TemplateResponse("index.html", {"request": request, "error": str(e)})
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
