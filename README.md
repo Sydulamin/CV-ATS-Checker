@@ -37,7 +37,7 @@ A **professional, open-source web-based ATS (Applicant Tracking System) CV/Resum
 1. **Clone the repository**:
 
 ```bash
-git clone https://github.com/yourusername/ats-cv-score-checker.git
+git clone https://github.com/sydulamin/ats-cv-score-checker.git
 cd ats-cv-score-checker
 ```
 
