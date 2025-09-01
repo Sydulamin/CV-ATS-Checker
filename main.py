@@ -238,7 +238,7 @@ async def check_cv(
         except Exception as e:
             return templates.TemplateResponse("index.html", {"request": request, "error": str(e)})
 
-    elif 2 <= len(resumes) <= 10:
+    elif 2 <= len(resumes) <= 100:
         batch_results = []
         for resume in resumes:
             try:
