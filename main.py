@@ -234,6 +234,7 @@ async def check_cv(
             resume_text, ext = extract_text_from_upload(up)
             r = compute_score(resume_text, job_description)
             r['cv_file_url'] = f"/{file_path}"
+            r['cv_filename'] = getattr(up, "filename", "Unnamed")  # <-- Add this
             results.append(r)
 
         # Single CV → show in home

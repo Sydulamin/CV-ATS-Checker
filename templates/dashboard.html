@@ -175,7 +175,7 @@
 
       <div class="candidate-card">
         <h3>Rank: {{ loop.index }}</h3>
-        <h5>{{ cv.filename }}</h5>
+        <h5>{{ cv.cv_filename }}</h5>
         <p><strong>Final Score:</strong> {{ cv.score }}%</p>
         <p><strong>Keyword Score:</strong> {{ cv.keyword_score }}%</p>
         <p><strong>Format Score:</strong> {{ cv.format_score }}%</p>
@@ -204,54 +204,43 @@
 
     <!-- Full CV Table -->
     <table class="table table-striped">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>CV Filename</th>
-          <th>Final Score</th>
-          <th>Keyword Score</th>
-          <th>Format Score</th>
-          <th>Missing Keywords</th>
-          <th>Suggestions</th>
-          <th>View CV</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for cv in cvs %}
-        <tr class="{% if loop.index0 < 3 %}top-cv{% endif %}">
-          <td>{{ loop.index }}</td>
-          <td>{{ cv.filename }}</td>
-          <td>{{ cv.score }}%</td>
-          <td>{{ cv.keyword_score }}%</td>
-          <td>{{ cv.format_score }}%</td>
-          <td>
-            {% if cv.missing %}
-              {% for kw in cv.missing[:3] %}
-                <span class="missing-keywords">{{ kw }}</span>
-              {% endfor %}
-              {% if cv.missing|length > 3 %} ...{% endif %}
-            {% else %}
-              None
-            {% endif %}
-          </td>
-          <td>
-            {% if cv.suggestion %}
-              <ul>
-                {% for s in cv.suggestion %}
-                <li>{{ s }}</li>
-                {% endfor %}
-              </ul>
-            {% else %}
-              None
-            {% endif %}
-          </td>
-          <td>
-            <a href="{{ cv.cv_file_url }}" target="_blank" class="btn btn-sm btn-primary">View CV</a>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>CV Title</th>
+      <th>Final Score</th>
+      <th>Keyword Score</th>
+      <th>Format Score</th>
+      <th>Suggestions</th>
+      <th>View CV</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for cv in cvs %}
+      <tr>
+        <td>{{ loop.index }}</td> <!-- Serial number -->
+        <td>{{ cv.cv_filename }}</td>
+        <td>{{ cv.score }}%</td>
+        <td>{{ cv.keyword_score }}%</td>
+        <td>{{ cv.format_score }}%</td>
+        <td>
+          {% if cv.missing %}
+        <p><strong>Missing:</strong>
+          {% for kw in cv.missing[:3] %}
+            <span class="missing-keywords">{{ kw }}</span>
+          {% endfor %}
+          {% if cv.missing|length > 3 %} ...{% endif %}
+        </p>
+        {% endif %}
+        
+        </td>
+        <td>
+          <a href="{{ cv.cv_file_url }}" target="_blank" class="btn btn-sm btn-primary">View</a>
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
   </div>
 
   <div class="footer">
