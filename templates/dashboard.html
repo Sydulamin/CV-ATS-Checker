@@ -11,17 +11,16 @@
       color: #222;
       min-height: 100vh;
       position: relative;
-      padding-bottom: 80px; /* space for footer */
+      padding-bottom: 100px; /* space for footer */
       font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
     }
 
-    /* Top Buttons */
     .top-buttons {
       text-align: center;
       margin-bottom: 20px;
     }
     .top-buttons .btn {
-      margin: 0 10px;
+      margin: 0 10px 15px 10px;
       background: linear-gradient(90deg, #4f46e5, #6366f1);
       color: #fff;
       font-weight: bold;
@@ -52,38 +51,35 @@
       animation: slideIn 1s ease;
     }
 
-    table {
-      background-color: #fff;
+    /* Top Candidates Cards */
+    .top-candidates {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      margin-bottom: 30px;
+      flex-wrap: wrap;
+    }
+    .candidate-card {
+      background: #fff;
       border-radius: 12px;
-      overflow: hidden;
+      padding: 20px;
+      width: 320px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
-
-    thead {
-      background: linear-gradient(90deg, #4f46e5, #6366f1);
-      color: #fff;
+    .candidate-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    }
+    .candidate-card h5 {
+      color: #4f46e5;
       font-weight: bold;
+      margin-bottom: 10px;
     }
-
-    tbody tr {
-      color: #222;
-      transition: background 0.3s ease;
+    .candidate-card p {
+      font-size: 14px;
+      margin: 3px 0;
     }
-
-    tbody tr:nth-child(even) {
-      background-color: #f5f7ff;
-    }
-
-    tbody tr:hover {
-      background-color: #e0e4ff;
-    }
-
-    .top-cv {
-      font-weight: bold;
-      border-left: 4px solid #6366f1;
-      background-color: #dbe2ff;
-    }
-
     .missing-keywords {
       background: #e0e7ff;
       border-left: 5px solid #4f46e5;
@@ -92,10 +88,31 @@
       color: #1e3a8a;
       font-size: 12px;
       display: inline-block;
-      margin: 2px;
+      margin: 2px 2px 4px 0;
       animation: fadeIn 0.8s ease;
     }
 
+    table {
+      background-color: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    thead {
+      background: linear-gradient(90deg, #4f46e5, #6366f1);
+      color: #fff;
+      font-weight: bold;
+    }
+    tbody tr {
+      color: #222;
+      transition: background 0.3s ease;
+    }
+    tbody tr:nth-child(even) {
+      background-color: #f5f7ff;
+    }
+    tbody tr:hover {
+      background-color: #e0e4ff;
+    }
     .btn-primary {
       background: linear-gradient(90deg, #4f46e5, #6366f1);
       color: #fff;
@@ -103,7 +120,6 @@
       font-weight: bold;
       transition: all 0.3s ease;
     }
-
     .btn-primary:hover {
       background: linear-gradient(90deg, #6366f1, #4f46e5);
       transform: scale(1.05);
@@ -121,13 +137,11 @@
       font-size: 14px;
       z-index: 1000;
     }
-
     .footer a {
       color: #fff;
       text-decoration: none;
       font-weight: bold;
     }
-
     .footer a:hover {
       text-decoration: underline;
     }
@@ -136,7 +150,6 @@
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
     }
-
     @keyframes slideIn {
       from { width: 0; }
       to { width: 80px; }
@@ -147,14 +160,49 @@
   <div class="container">
 
     <!-- Top Buttons -->
-   
+    
 
-    <h1 class="heading">ATS CV Comparison</h1>
-     <div class="top-buttons">
-      <a href="/" class="btn">Home</a>
-      <a href="/dashboard" class="btn">Dashboard</a>
+    <h1 class="heading">ATS CV Dashboard</h1>
+
+    <div class="top-buttons">
+      <a href="/" class="btn btn-primary btn-lg">Home</a>
+      <a href="/dashboard" class="btn btn-primary btn-lg">Dashboard</a>
     </div>
 
+    <!-- Top Candidates Cards -->
+    <div class="top-candidates">
+      {% for cv in cvs[:3] %}
+
+      <div class="candidate-card">
+        <h3>Rank: {{ loop.index }}</h3>
+        <h5>{{ cv.filename }}</h5>
+        <p><strong>Final Score:</strong> {{ cv.score }}%</p>
+        <p><strong>Keyword Score:</strong> {{ cv.keyword_score }}%</p>
+        <p><strong>Format Score:</strong> {{ cv.format_score }}%</p>
+        {% if cv.missing %}
+        <p><strong>Missing:</strong>
+          {% for kw in cv.missing[:3] %}
+            <span class="missing-keywords">{{ kw }}</span>
+          {% endfor %}
+          {% if cv.missing|length > 3 %} ...{% endif %}
+        </p>
+        {% endif %}
+        {% if cv.suggestion %}
+        <p><strong>Suggestions:</strong>
+          <ul>
+            {% for s in cv.suggestion[:2] %}
+            <li>{{ s }}</li>
+            {% endfor %}
+            {% if cv.suggestion|length > 2 %} ...{% endif %}
+          </ul>
+        </p>
+        {% endif %}
+        <a href="{{ cv.cv_file_url }}" target="_blank" class="btn btn-primary btn-sm mt-2">View CV</a>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Full CV Table -->
     <table class="table table-striped">
       <thead>
         <tr>
