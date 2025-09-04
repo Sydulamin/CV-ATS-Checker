@@ -293,6 +293,14 @@
         </div>
         {% endif %}
 
+        {% if result.suggestion %}
+          <ul>
+            {% for s in result.suggestion %}
+              <li style="color:red; font-weight:bold;">{{ s }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+
         <h5 class="text-center">Uploaded CV Preview:</h5>
         <iframe src="{{ result['cv_file_url'] }}" width="100%" height="600px"></iframe>
       </div>

@@ -70,6 +70,15 @@ ALL_CVS = []
 # -----------------------
 # Utility functions
 # -----------------------
+BASIC_WORDS = set([
+    "i", "you", "he", "she", "it", "we", "they",
+    "a", "an", "the", "and", "or", "but", "if", "is",
+    "are", "was", "were", "in", "on", "for", "of", "to",
+    "with", "as", "by", "at", "from", "this", "that",
+    "these", "those", "my", "your", "his", "her", "its",
+    "our", "their", "be", "have", "has", "had", "not"
+])
+
 def get_extension(filename: str) -> str:
     return "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
 
@@ -135,7 +144,8 @@ def clean_text(text: str) -> str:
 def extract_keywords(text: str):
     text = clean_text(text)
     words = set(text.split())
-    return words - STOP_WORDS
+    # Remove stopwords and basic words
+    return words - STOP_WORDS - BASIC_WORDS
 
 def check_cv_format(text: str):
     warnings = []
@@ -190,8 +200,9 @@ def compute_score(resume_text: str, job_description: str):
         suggestion.append("Fix formatting issues")
     if missing:
         suggestion.append("Add missing important skills/keywords")
-    if final_score < 60:
-        suggestion.append("CV may not meet job requirements")
+    # ⚠️ Add professional low-score warning
+    if keyword_score < 50 or format_score < 50:
+        suggestion.append("⚠️ CV has low match or poor format; review carefully.")
 
     return {
         "score": final_score,
@@ -234,7 +245,7 @@ async def check_cv(
             resume_text, ext = extract_text_from_upload(up)
             r = compute_score(resume_text, job_description)
             r['cv_file_url'] = f"/{file_path}"
-            r['cv_filename'] = getattr(up, "filename", "Unnamed")  # <-- Add this
+            r['cv_filename'] = getattr(up, "filename", "Unnamed")
             results.append(r)
 
         # Single CV → show in home
